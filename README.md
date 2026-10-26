@@ -6,9 +6,7 @@ update live. Pure HTML/CSS/JS: no frameworks, no build step. Optional
 extras: a tiny Python server with an AI "interpret sketch" door
 (Z.ai), and an MCP server so AI assistants can run your circuits.
 
-## Quick start (no install at all)
-
-Double-click `index.html`. That's the whole app.
+## Installation
 
 With the local server (adds the AI door + proper URLs):
 
@@ -97,11 +95,6 @@ FAKE example, clearly labelled. The key lives ONLY in the environment.
 The browser shows the proposal, validates it with the same rules as
 hand-drawn circuits, and nothing enters the drawing without Accept.
 
-## Documents
-
-- **LEARNING.md** — every milestone explained in plain words, with
-  analogies and self-test questions (answers at the bottom).
-- **CHECKLIST.md** — exact hand-testing steps per milestone.
 
 ## Credits
 
