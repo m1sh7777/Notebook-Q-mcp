@@ -2,8 +2,8 @@
 
 Sketch quantum circuits **by hand** on a notebook page — wires, boxed
 gates (H, X, Z, R), hand-drawn CNOTs — and watch the measurement odds
-update live. Pure HTML/CSS/JS: no frameworks, no build step. Optional
-extras: a tiny Python server with an AI "interpret sketch" door
+update live.
+Optional extras: a tiny Python server with an AI "interpret sketch" door
 (Z.ai), and an MCP server so AI assistants can run your circuits.
 
 ## Installation
