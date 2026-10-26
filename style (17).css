@@ -1,0 +1,572 @@
+/* NotebookQ — styles the page around the canvas. Warm paper,
+   dark ink; the graph grid itself is painted in canvas.js. */
+
+/* Reset: browsers add default margins; clear them so our layout
+   math is exact and predictable. */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box; /* widths include padding + border: fewer surprises */
+}
+
+html,
+body {
+  height: 100%; /* gives body a real height to fill */
+}
+
+body {
+  /* Column layout: toolbar on top, canvas takes ALL remaining height */
+  display: flex;
+  flex-direction: column;
+
+  background: #efece2;               /* "desk" color around the paper */
+  font-family: "Segoe UI", system-ui, sans-serif;
+  color: #26364a;
+  overflow: hidden;                  /* no page scrolling: the canvas IS the page */
+}
+
+/* ---------------- Toolbar ---------------- */
+.toolbar {
+  display: flex;           /* children in a row */
+  align-items: baseline;   /* texts sit on the same baseline */
+  gap: 10px;
+  padding: 10px 16px;
+  background: #fbfaf4;
+  border-bottom: 1px solid #d8d4c4;
+}
+
+.title {
+  font-family: "Caveat", cursive;  /* handwriting font loaded in index.html */
+  font-weight: 600;
+  font-size: 34px;
+  line-height: 1;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: #8a8fa0;
+}
+
+/* The Clear button */
+.btn-clear {
+  margin-left: auto;    /* flexbox trick: auto margin eats all free space
+                           to the LEFT → the button hugs the right edge */
+  font-family: inherit;
+  font-size: 14px;
+  padding: 7px 20px;
+  border: 1px solid #c8c2ab;
+  border-radius: 8px;
+  background: #fffdf6;
+  color: #a04434;       /* soft ink-red text */
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-clear:hover { background: #f6efdd; }
+.btn-clear:active { transform: scale(0.96); }  /* subtle "pressed" feedback */
+
+/* ---------------- Tool buttons ---------------- */
+/* The data doors: Qiskit / Data / Save / Load — small, quiet,
+   same paper look as the teach letters but in the UI's own voice. */
+.tool-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 14px;
+}
+
+.btn-tool {
+  font-family: inherit;
+  font-size: 13px;
+  padding: 5px 12px;
+  border: 1px solid #c8c2ab;
+  border-radius: 8px;
+  background: #fffdf6;
+  color: #26364a;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.btn-tool:hover { background: #f6efdd; }
+.btn-tool:active { transform: scale(0.96); }
+
+/* ---------------- Export modal ---------------- */
+/* One shared dialog for any exported text. The backdrop dims the
+   page; the card is a sheet of paper. Hidden by default (.modal),
+   shown with .open — files.js toggles the class. */
+.modal {
+  position: fixed;
+  inset: 0;                 /* cover the whole page */
+  background: rgba(38, 54, 74, 0.35); /* ink-tinted dim */
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 50;              /* above everything, even the msg chip */
+}
+
+.modal.open { display: flex; }
+
+.modal-card {
+  background: #fbfaf4;
+  border: 1px solid #d8d4c4;
+  border-radius: 12px;
+  box-shadow: 0 12px 40px rgba(38, 54, 74, 0.25);
+  width: min(640px, calc(100vw - 48px));
+  max-height: min(70vh, 560px);
+  display: flex;
+  flex-direction: column;
+  padding: 14px 16px;
+  gap: 10px;
+}
+
+.modal-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.modal-title {
+  font-family: "Caveat", cursive;
+  font-weight: 600;
+  font-size: 24px;
+  line-height: 1;
+}
+
+.modal-pre {
+  font-family: "Sarasa Mono SC", "Consolas", monospace;
+  font-size: 12.5px;
+  line-height: 1.5;
+  background: #f4f1e6;
+  border: 1px solid #e4dfcd;
+  border-radius: 8px;
+  padding: 10px 12px;
+  overflow: auto;           /* long code scrolls inside the card */
+  white-space: pre;
+  margin: 0;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* ---------------- Variables strip ---------------- */
+/* A thin second row under the toolbar: name = value [Add], then
+   the editable chips. Always visible — variables are vocabulary
+   the R gates point at, so they should never hide. */
+.var-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 16px;
+  background: #f6f3e8;
+  border-bottom: 1px solid #d8d4c4;
+  flex-wrap: wrap;          /* many chips → wrap to a second line */
+}
+
+.var-hint {
+  font-size: 13px;
+  color: #8a8fa0;
+}
+
+.var-eq { color: #8a8fa0; font-size: 13px; }
+
+.var-input {
+  font-family: inherit;
+  font-size: 13px;
+  width: 110px;
+  padding: 4px 8px;
+  border: 1px solid #c8c2ab;
+  border-radius: 6px;
+  background: #fffdf6;
+  color: #26364a;
+}
+
+.var-input-val { width: 80px; }
+
+.var-chips {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.var-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #fffdf6;
+  border: 1px solid #c8c2ab;
+  border-radius: 14px;
+  padding: 2px 4px 2px 10px;
+  font-family: "Caveat", cursive;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.var-chip-name { color: #26364a; }
+
+.var-chip-val {
+  font-family: inherit;
+  font-size: 12.5px;
+  width: 64px;
+  border: 1px solid #ddd6c2;
+  border-radius: 6px;
+  background: #fdfcf7;
+  color: #26364a;
+  padding: 1px 5px;
+}
+
+.var-chip-del {
+  border: none;
+  background: none;
+  color: #a04434;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 0 6px;
+  line-height: 1;
+}
+
+.var-chip-del:hover { color: #7d2f22; }
+
+/* ---------------- R angle picker ---------------- */
+/* The little dropdown that appears under a freshly placed R.
+   Absolutely positioned inside .canvas-wrap (position:relative),
+   in the canvas's CSS-pixel space. */
+.angle-picker {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fbfaf4;
+  border: 1px solid #c8c2ab;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(38, 54, 74, 0.18);
+  padding: 4px 8px;
+  z-index: 30;
+}
+
+.angle-picker-label {
+  font-family: "Caveat", cursive;
+  font-size: 15px;
+  color: #8a8fa0;
+}
+
+.angle-picker-select {
+  font-family: inherit;
+  font-size: 13px;
+  border: 1px solid #c8c2ab;
+  border-radius: 6px;
+  background: #fffdf6;
+  color: #26364a;
+  padding: 2px 4px;
+  max-width: 180px;
+}
+
+/* ---------------- Select mode + blocks ---------------- */
+
+/* Select mode is ON: the button darkens like the teach letters,
+   and the canvas cursor becomes a crosshair-with-cell so the tool
+   change is visible before the first drag. */
+#selectBtn.on {
+  background: #26364a;
+  color: #faf9f4;
+  border-color: #26364a;
+}
+
+canvas.selecting { cursor: cell; }
+
+/* The floating "Save as block" chip (bottom-right of the paper,
+   shown only while a selection holds at least one gate). */
+.save-chip {
+  position: absolute;
+  right: 14px;
+  bottom: 14px;
+  display: none;
+  z-index: 20;
+}
+
+.save-chip.show { display: block; }
+
+/* The small block-name dialog reuses .modal; this is its card. */
+.modal-card-small {
+  width: min(360px, calc(100vw - 48px));
+  gap: 12px;
+}
+
+.modal-note {
+  font-size: 13px;
+  color: #8a8fa0;
+  line-height: 1.45;
+}
+
+.block-name-input {
+  font-family: "Caveat", cursive;
+  font-size: 24px;
+  width: 64px;
+  text-align: center;
+  text-transform: uppercase;
+  padding: 4px 8px;
+}
+
+/* ---------------- AI proposal preview ---------------- */
+/* The badge states the mode loudly: FAKE (canned) or live model.
+   The privacy note rides inside the overlay itself — read exactly
+   when the feature might be used. */
+.ai-note {
+  border-left: 3px solid #d8d4c4;
+  padding-left: 10px;
+}
+
+.ai-summary {
+  font-size: 14px;
+  color: #26364a;
+  line-height: 1.5;
+}
+
+.ai-problems {
+  font-size: 13.5px;
+  color: #a04434;        /* the validator's ink-red voice */
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+#aiAcceptBtn:disabled {
+  opacity: 0.45;         /* a proposal with problems can't be accepted */
+  cursor: not-allowed;
+}
+
+/* ---------------- Help overlay + accessibility ---------------- */
+
+.help-body {
+  overflow: auto;          /* long help scrolls inside the card */
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #26364a;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 4px;
+}
+
+.help-body b { color: #1c2940; }
+
+/* Visible focus ring for keyboard users only (:focus-visible ignores
+   mouse clicks), so tabbing through the toolbar always shows focus. */
+:focus-visible {
+  outline: 3px solid #7a9cd8;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* ---------------- The drawing surface ---------------- */
+.canvas-wrap {
+  flex: 1;       /* grow: swallow every pixel of height the toolbar left */
+  min-height: 0; /* flex children refuse to shrink below their content size
+                    without this — a classic flexbox gotcha */
+  position: relative;
+}
+
+canvas {
+  display: block;   /* inline elements leave a mystery gap below; block removes it */
+  width: 100%;
+  height: 100%;
+  background: #faf9f4;   /* the "paper". JS paints the grid + ink on top. */
+  cursor: crosshair;
+
+  /* ★ THE most important CSS line for touch drawing:
+     it tells the browser "this element handles its own touches —
+     never scroll, pan or zoom the page for them". Without it, a
+     finger drag SCROLLS the page instead of leaving ink. */
+  touch-action: none;
+
+  /* stop long-press / double-tap from selecting things while drawing */
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* On very narrow screens the subtitle would crowd the button — hide it. */
+@media (max-width: 520px) {
+  .subtitle { display: none; }
+  .title { font-size: 28px; }
+}
+
+/* ---------------- Teach bar ---------------- */
+/* Sits in the toolbar next to the subtitle. The three letter
+   buttons toggle teach mode on/off (state.teach in state.js). */
+.teach-bar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: 14px;
+}
+
+.teach-hint {
+  font-size: 13px;
+  color: #8a8fa0;
+}
+
+.btn-teach {
+  font-family: "Caveat", cursive;  /* letters look like handwriting */
+  font-weight: 600;
+  font-size: 18px;
+  line-height: 1;
+  width: 30px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid #c8c2ab;
+  border-radius: 6px;
+  background: #fffdf6;
+  color: #26364a;
+  cursor: pointer;
+}
+
+.btn-teach:hover { background: #f6efdd; }
+.btn-teach:active { transform: scale(0.94); }
+
+/* The letter currently being taught: ink-filled, "pressed in".
+   Applied/removed by teach.js (refreshTeachButtons). */
+.btn-teach.on {
+  background: #26364a;
+  color: #faf9f4;
+  border-color: #26364a;
+}
+
+/* ---------------- The transient message chip ---------------- */
+/* A little ink-colored note that fades in bottom-left over the
+   paper ("Column 3 already has a gate", "Saved H example 2").
+   Painted by main.js's showMessage(); the fade is pure CSS. */
+#msg {
+  position: absolute;       /* inside .canvas-wrap (position:relative) */
+  left: 12px;
+  bottom: 12px;
+  background: #26364a;      /* ink */
+  color: #faf9f4;           /* paper */
+  font-family: "Caveat", cursive;
+  font-size: 18px;
+  padding: 5px 14px;
+  border-radius: 8px;
+  opacity: 0;               /* hidden by default */
+  transition: opacity 0.25s;
+  pointer-events: none;     /* never blocks the pen */
+}
+
+#msg.show { opacity: 1; }
+
+/* ---------------- The odds panel ---------------- */
+/* A quiet strip of paper UNDER the canvas. The page is a flex
+   column (body): the toolbar, then .canvas-wrap (flex:1 — still
+   swallows all leftover height), then this panel at its natural
+   height. Drawing space shrinks a little; the odds get a home. */
+.results {
+  border-top: 1px solid #d8d4c4;
+  background: #fbfaf4;
+  padding: 8px 16px 10px;
+}
+
+.results-head {
+  display: flex;           /* title left, limit note right after it */
+  align-items: baseline;
+  gap: 10px;
+}
+
+.results-title {
+  font-family: "Caveat", cursive;  /* the handwriting voice */
+  font-weight: 600;
+  font-size: 22px;
+  line-height: 1;
+}
+
+.results-limit {
+  font-size: 12px;
+  color: #8a8fa0;          /* the muted "subtitle" gray */
+}
+
+/* The "Z changes a hidden sign" footnote — panel.js fills or hides
+   it. Italic + gray so it reads as a note, not an error (errors keep
+   their own ink-red voice below). */
+.results-hintline {
+  display: none;           /* panel.js shows it only when honest */
+  font-size: 13px;
+  font-style: italic;
+  color: #8a8fa0;
+  margin-top: 2px;
+}
+
+.results-body {
+  display: flex;           /* bars in a row: 00, 01, 10, 11 ... */
+  align-items: flex-end;   /* bottoms aligned — labels sit on one line */
+  gap: 6px;
+  min-height: 92px;        /* pct + 56px track + label: fixed frame,
+                              so nothing jumps when bars change */
+  margin-top: 4px;
+  overflow-x: auto;        /* 5 qubits = 32 bars → narrow screens
+                              scroll sideways instead of squashing */
+}
+
+/* The two kinds of text the panel can show instead of bars. */
+.results-empty,
+.results-problem {
+  font-size: 14px;
+  color: #8a8fa0;
+  padding-top: 10px;
+  white-space: pre-wrap;   /* several problems = several lines */
+}
+
+.results-problem { color: #a04434; } /* problems speak in the ink-red */
+
+/* One bar = pct on top, ink fill, bit-pattern label below.
+   Built by panel.js's makeBar(); the fill's height is the one
+   inline style JS sets — height IS the data here. */
+.bar {
+  display: flex;
+  flex-direction: column;  /* pct, fill, label stacked */
+  align-items: center;
+  justify-content: flex-end; /* grow from the bottom up */
+  flex: 0 0 auto;          /* never squashed; .results-body scrolls */
+  min-width: 26px;
+}
+
+.bar-pct {
+  font-size: 10.5px;
+  color: #8a8fa0;
+  margin-bottom: 2px;
+}
+
+.bar-fill {
+  width: 18px;
+  background: #26364a;     /* the same ink as the canvas */
+  border-radius: 3px 3px 0 0;
+}
+
+.bar-label {
+  font-family: "Caveat", cursive; /* bit patterns look hand-named,
+                                     like the q0/q1 wire labels */
+  font-size: 15px;
+  line-height: 1;
+  margin-top: 3px;
+}
+
+
+/* ---------------- Code view (OpenQASM editor) ---------------- */
+.code-editor {
+  font-family: "Sarasa Mono SC", "Consolas", monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  width: 100%;
+  min-height: 220px;
+  box-sizing: border-box;
+  background: #f4f1e6;
+  border: 1px solid #e4dfcd;
+  border-radius: 8px;
+  padding: 10px 12px;
+  resize: vertical;
+  white-space: pre;
+  tab-size: 2;
+}
+.code-status { min-height: 1.4em; margin: 8px 0 2px; font-size: 13px; }
+.code-status .code-err  { color: #b3261e; }
+.code-status .code-warn { color: #7a6a1f; font-style: italic; }
+.code-status .code-ok   { color: #2d6a3a; }

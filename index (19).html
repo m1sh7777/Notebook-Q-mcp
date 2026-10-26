@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <!-- Real device width; without it mobile browsers fake a 980px viewport
+       and every touch coordinate goes wrong. -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <title>NotebookQ — sketch quantum circuits</title>
+
+  <link rel="stylesheet" href="css/style.css" />
+  <!-- Handwriting font; falls back to `cursive` when offline. -->
+  <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600&display=swap" rel="stylesheet" />
+</head>
+<body>
+  <!-- Top bar: app name, teach buttons, Clear -->
+  <header class="toolbar">
+    <h1 class="title">NotebookQ</h1>
+    <span class="subtitle">sketch a quantum circuit</span>
+
+    <!-- Teach mode: click a letter to start/stop teaching it. -->
+    <div class="teach-bar">
+      <span class="teach-hint">Teach:</span>
+      <button class="btn-teach" id="teachH" data-label="H">H</button>
+      <button class="btn-teach" id="teachX" data-label="X">X</button>
+      <button class="btn-teach" id="teachZ" data-label="Z">Z</button>
+      <button class="btn-teach" id="teachR" data-label="R">R</button>
+    </div>
+
+    <!-- Data in/out buttons; wiring lives in files.js. -->
+    <div class="tool-bar">
+      <!-- Undo/redo (undo.js) -->
+      <button class="btn-tool" id="undoBtn" title="Undo (Ctrl+Z)">Undo</button>
+      <button class="btn-tool" id="redoBtn" title="Redo (Ctrl+Y)">Redo</button>
+      <!-- Select mode: save gates as a reusable block (A–F). -->
+      <button class="btn-tool" id="selectBtn" title="Select mode: drag a rectangle over gates, then save them as a block">Select</button>
+      <button class="btn-tool" id="aiBtn" title="Send the sketch to an AI service, review its proposal, accept or reject">AI sketch</button>
+      <!-- Edit the drawing as OpenQASM code and back. -->
+      <button class="btn-tool" id="codeBtn" title="View and edit the circuit as OpenQASM code; Apply redraws it">Code</button>
+      <button class="btn-tool" id="qiskitBtn" title="Export the circuit as Qiskit Python code">Qiskit</button>
+      <button class="btn-tool" id="trainBtn" title="Download your taught letter examples as JSON">Data</button>
+      <button class="btn-tool" id="saveBtn" title="Download the whole drawing as JSON">Save</button>
+      <button class="btn-tool" id="loadBtn" title="Load a drawing from a JSON file">Load</button>
+      <button class="btn-tool" id="helpBtn" title="How to use NotebookQ">Help</button>
+    </div>
+    <input type="file" id="loadInput" accept=".json,application/json" style="display:none" />
+
+    <button id="clearBtn" class="btn-clear" title="Erase everything">Clear</button>
+  </header>
+
+  <!-- Variables strip (variables.js): typing in a chip's value box
+       updates the odds bars live. -->
+  <div class="var-bar" id="varBar">
+    <span class="var-hint">Variables:</span>
+    <input class="var-input" id="varNameInput" type="text" placeholder="name (theta)"
+           aria-label="New variable name" maxlength="20" />
+    <span class="var-eq">=</span>
+    <input class="var-input var-input-val" id="varValueInput" type="text" placeholder="1.57"
+           aria-label="New variable value" />
+    <button class="btn-tool" id="varAddBtn">Add</button>
+    <span class="var-chips" id="varChips"></span>
+  </div>
+
+  <!-- The whole app lives on this one canvas. #msg is a transient
+       status chip painted over it. -->
+  <main class="canvas-wrap">
+    <canvas id="canvas" aria-label="Draw your quantum circuit here"></canvas>
+    <div id="msg" role="status"></div>
+    <!-- Floating chip shown while a selection holds a gate. -->
+    <div class="save-chip" id="saveAsBlockChip">
+      <button class="btn-tool" id="saveAsBlockBtn">Save as block</button>
+    </div>
+  </main>
+
+  <!-- Odds panel; below the paper because the circuit grows to the
+       right while the bars grow in count. Rebuilt from state on
+       every render (panel.js). -->
+  <section class="results">
+    <div class="results-head">
+      <span class="results-title">Measurement odds</span>
+      <!-- Filled by panel.js from MAX_QUBITS -->
+      <span class="results-limit" id="simLimit"></span>
+    </div>
+    <!-- One-line "Z changes a hidden sign" note; panel.js fills or
+         hides it on every render. -->
+    <div class="results-hintline" id="phaseHint"></div>
+    <div class="results-body" id="resultsBody"></div>
+  </section>
+
+  <!-- Shared export modal; hidden by default, .open shows it. -->
+  <div class="modal" id="exportModal" role="dialog" aria-modal="true" aria-labelledby="exportTitle">
+    <div class="modal-card">
+      <div class="modal-head">
+        <span class="modal-title" id="exportTitle">Export</span>
+        <button class="btn-tool" id="exportCloseBtn" title="Close">Close</button>
+      </div>
+      <pre class="modal-pre" id="exportPre"></pre>
+      <div class="modal-actions">
+        <button class="btn-tool" id="exportCopyBtn">Copy</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- CODE view: OpenQASM textarea, re-checked while typing;
+       Apply redraws the page from it. -->
+  <div class="modal" id="codeModal" role="dialog" aria-modal="true" aria-labelledby="codeTitle">
+    <div class="modal-card">
+      <div class="modal-head">
+        <span class="modal-title" id="codeTitle">Circuit as code (OpenQASM 2.0)</span>
+        <button class="btn-tool" id="codeCloseBtn" title="Close">Close</button>
+      </div>
+      <textarea class="code-editor" id="codeText" spellcheck="false" autocomplete="off"
+                aria-label="OpenQASM code"></textarea>
+      <div class="code-status" id="codeStatus" aria-live="polite"></div>
+      <div class="modal-actions">
+        <button class="btn-tool" id="codeReloadBtn" title="Throw away edits and rewrite the code from the drawing">Reload from drawing</button>
+        <button class="btn-tool" id="codeApplyBtn" title="Replace the drawing with this code">Apply to drawing</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- "Save as block" name dialog; one letter, A–F. -->
+  <div class="modal" id="blockModal" role="dialog" aria-modal="true" aria-label="Save selection as a block">
+    <div class="modal-card modal-card-small">
+      <div class="modal-head">
+        <span class="modal-title">Save as block</span>
+        <button class="btn-tool" id="blockCancelBtn">Cancel</button>
+      </div>
+      <p class="modal-note">Name the block with ONE letter, A–F. From now on, a box
+        with that letter on a wire places the whole group there.</p>
+      <input class="var-input block-name-input" id="blockNameInput" type="text"
+             maxlength="1" placeholder="A" aria-label="Block letter" />
+      <div class="modal-actions">
+        <button class="btn-tool" id="blockOkBtn">Save block</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI proposal preview; only Accept touches state, after the
+       same validator as hand-drawn circuits has cleared it. -->
+  <div class="modal" id="aiOverlay" role="dialog" aria-modal="true" aria-labelledby="aiBadge">
+    <div class="modal-card">
+      <div class="modal-head">
+        <span class="modal-title" id="aiBadge">AI proposal</span>
+        <button class="btn-tool" id="aiRejectBtn">Reject</button>
+      </div>
+      <p class="modal-note ai-note">This feature sends a picture of your drawing to an
+        external AI service (the Z.ai API, through a small local server). Only the
+        picture leaves the page — and only when you press this button. Without an
+        API key the server answers with a canned FAKE example instead.</p>
+      <p class="ai-summary" id="aiSummary"></p>
+      <p class="ai-problems" id="aiProblems"></p>
+      <div class="modal-actions">
+        <button class="btn-tool" id="aiAcceptBtn">Accept — put it on the pad</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Help overlay: static HTML manual. Esc or Close hides it. -->
+  <div class="modal" id="helpOverlay" role="dialog" aria-modal="true" aria-labelledby="helpTitle">
+    <div class="modal-card">
+      <div class="modal-head">
+        <span class="modal-title" id="helpTitle">How NotebookQ works</span>
+        <button class="btn-tool" id="helpCloseBtn">Close</button>
+      </div>
+      <div class="help-body">
+        <p><b>Draw a circuit:</b> a long flat line becomes a qubit wire.
+        Box a letter on it for a gate — H (split), X (flip), Z (sign flip),
+        R (rotation by a variable angle). The odds of every bit pattern
+        appear in the panel below.</p>
+        <p><b>CNOT:</b> draw a near-vertical line between two wires, with a
+        small circle-blob on the TARGET wire (a dot on the control wire is
+        optional). H, then a CNOT, makes the Bell state — two entangled
+        qubits.</p>
+        <p><b>Teach:</b> click a letter in the toolbar, draw that letter a
+        few times (pause after each), click again to finish. Your examples
+        make recognition match YOUR handwriting.</p>
+        <p><b>Variables:</b> type a name and a number (theta = 1.57), press
+        Add. When you place an R box, a dropdown asks which variable to use.
+        Editing the number moves the bars live.</p>
+        <p><b>Blocks:</b> Select mode → drag a rectangle over some gates →
+        "Save as block" → pick a letter A–F. From then on, box that letter
+        on a wire to place the whole group. Blocks can contain blocks (but
+        not themselves).</p>
+        <p><b>AI sketch:</b> sends a PICTURE of your drawing to an external
+        AI service (Z.ai). Its answer is only a proposal — the validator
+        checks it, and nothing happens until you press Accept. Without an
+        API key you get a canned FAKE example instead.</p>
+        <p><b>Keep your work:</b> everything autosaves in this browser
+        (a refresh brings it back). Save/Load write a JSON file; Qiskit
+        exports runnable Python; Data exports your taught letters.</p>
+        <p><b>Undo / Redo:</b> the buttons, or Ctrl+Z / Ctrl+Y. A placed
+        gate first turns back into your ink, then vanishes stroke by
+        stroke.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Plain <script> tags, no modules or bundler. ORDER MATTERS:
+       each file uses globals declared by the files above it —
+       state.js → canvas.js → recognize.js → teach.js → drawing.js →
+       simulator.js → exporters.js → qasm.js → files.js →
+       codepanel.js → variables.js → blocks.js → ai.js → undo.js →
+       panel.js → main.js. simulator.js, exporters.js and qasm.js
+       are pure (runnable in node without a browser). -->
+  <script src="js/state.js"></script>
+  <script src="js/canvas.js"></script>
+  <script src="js/recognize.js"></script>
+  <script src="js/teach.js"></script>
+  <script src="js/drawing.js"></script>
+  <script src="js/simulator.js"></script>
+  <script src="js/exporters.js"></script>
+  <script src="js/qasm.js"></script>
+  <script src="js/files.js"></script>
+  <script src="js/codepanel.js"></script>
+  <script src="js/variables.js"></script>
+  <script src="js/blocks.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/undo.js"></script>
+  <script src="js/panel.js"></script>
+  <script src="js/main.js"></script>
+</body>
+</html>

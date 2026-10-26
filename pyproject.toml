@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "notebookq"
+version = "1.0.0"
+description = "NotebookQ - sketch quantum circuits by hand: local server, AI interpret door, and an MCP server over stdio"
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+
+# No runtime dependencies for the base install: the web server is pure
+# standard library. The MCP SDK is an optional extra so `pip install .`
+# works even offline.
+[project.optional-dependencies]
+mcp = ["mcp>=1.2,<2"]
+
+[project.scripts]
+notebookq = "notebookq.__main__:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+packages = ["notebookq"]
+
+# The web app travels inside the package (sync_web.py copies it in
+# before building — the repo root stays the single editing home).
+[tool.setuptools.package-data]
+notebookq = ["web/*.html", "web/css/*.css", "web/js/*.js"]

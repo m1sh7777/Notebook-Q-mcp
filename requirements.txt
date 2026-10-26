@@ -1,0 +1,10 @@
+# NotebookQ Python requirements.
+#
+# The web server itself needs NOTHING (standard library only) —
+# this file exists for the MCP server (`notebookq mcp`).
+#
+# WHY mcp<2: the official MCP Python SDK reorganized its public
+# API in the 2.x line (FastMCP's import path and tool registration
+# changed). NotebookQ uses the stable 1.x API, so the pin keeps
+# fresh installs working; PyPI currently serves 2.3.0.
+mcp>=1.2,<2
