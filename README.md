@@ -34,6 +34,39 @@ python3 server.py            # serves the app at http://localhost:8000
 - **Undo** — Ctrl+Z / Ctrl+Y.
 - Everything autosaves in your browser; Save/Load use JSON files.
 
+## The Code view (OpenQASM)
+
+Press **Code** to see the circuit as OpenQASM 2.0 text. You can edit that text
+and press **Apply to drawing** to redraw the page from it.
+
+OpenQASM is a plain-text format for describing quantum circuits, one gate per
+line. The Bell circuit looks like this:
+
+```
+OPENQASM 2.0;
+include "qelib1.inc";
+qreg q[2];
+h q[0];
+cx q[0],q[1];
+```
+
+`qreg q[2]` makes two qubits, `h q[0]` applies an H gate to qubit 0, and
+`cx q[0],q[1]` is a CNOT with qubit 0 as control and qubit 1 as target.
+
+Only what the drawing can express is supported: `h`, `x`, `z`, `ry(angle)` and
+`cx`. Angles can be numbers or simple maths like `pi/2`. Anything else is
+rejected with the line number, and nothing changes until the text parses.
+Variable names are kept in a trailing comment (`ry(pi/2) q[1]; // theta`) so
+they survive a round trip. Blocks are expanded into plain gates on export,
+because OpenQASM has no equivalent.
+
+## Limits
+
+- Five gate types, at most 5 qubits
+- Handwriting recognition is heuristic and has only been tested by the author.
+  Expect misreads on unfamiliar handwriting, and use Teach to fix them
+- Not a replacement for Qiskit, Quirk or IBM Composer
+
 ## Tests
 
 ```bash
@@ -59,41 +92,29 @@ venv/bin/notebookq mcp           # MCP server over stdio
 Why `mcp<2` in requirements: the MCP SDK's 2.x line reorganized the
 FastMCP API this server uses; the pin keeps fresh installs working
 (the same comment lives in `notebookq_mcp.py` and `requirements.txt`).
+```
 
-## Connect an MCP client
-
-Like the KSRTC README example — point the client at the command:
+To connect an MCP client, point it at the command:
 
 ```json
 {
   "mcpServers": {
-    "notebookq": {
-      "command": "notebookq",
-      "args": ["mcp"]
-    }
+    "notebookq": { "command": "notebookq", "args": ["mcp"] }
   }
 }
 ```
 
-From an uninstalled checkout, use `"command": "python3"`,
-`"args": ["notebookq_mcp.py"]` instead.
+Tools: `simulate_circuit(n_qubits, gates)` and `validate_circuit(n_qubits, gates)`.
+The MCP SDK is pinned to `mcp<2` because 2.x changed the API this server uses.
 
-Tools exposed:
+## The AI interpret sketch and your api key
 
-- `simulate_circuit(n_qubits, gates)` → probabilities per bit pattern.
-  Gates: `{"gate":"H","qubit":0}`, `{"gate":"R","qubit":1,"angle":1.57}`
-  (angle is a NUMBER), `{"gate":"CNOT","control":0,"target":1}`.
-- `validate_circuit(n_qubits, gates)` → plain-English problem list.
+`POST /interpret` sends a drawing image to Z.ai when `ZAI_API_KEY` is set
+(model from `ZAI_MODEL`). With no key it returns a clearly labelled fake
+example. The key is read only from the environment. It is never written to a
+file or sent to the browser. Never commit a key; `.gitignore` already skips
+`.env` files.
 
-## The AI interpret door (M4)
-
-`POST /interpret` accepts `{image: "<png data url>"}`. With
-`ZAI_API_KEY` set it calls Z.ai (model from `ZAI_MODEL`, default
-`glm-5.3-flash`; documented vision fallbacks: `glm-4.5v`, `glm-4.6v`)
-and returns a sanitized proposal. Without a key it returns a canned
-FAKE example, clearly labelled. The key lives ONLY in the environment.
-The browser shows the proposal, validates it with the same rules as
-hand-drawn circuits, and nothing enters the drawing without Accept.
 
 
 ## Credits
@@ -102,4 +123,11 @@ NotebookQ is inspired by the UIST 2022 paper
 **"Notational Programming for Notebook Environments: A Case Study with
 Quantum Circuits"** by Ian Arawjo, Anthony J. DeArmas, Michael Roberts,
 Shrutarshi Basu, and Tapan Parikh.
+
 https://doi.org/10.1145/3526113.3545619
+
+NotebookQ is **not** an implementation of that system. It has no shared code scope, wire bundles or
+recursion, which are that paper's main contributions. It takes the idea that
+a circuit diagram can be a way of writing a program and applies it to a
+standalone learning tool.
+
